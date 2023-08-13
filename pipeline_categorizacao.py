@@ -24,7 +24,7 @@ words = open("word_frequency_linguateca.txt", encoding="utf8").read().split()
 wordcost = dict((k, log((i+1)*log(len(words)))) for i,k in enumerate(words))
 maxword = max(len(x) for x in words)
 
-#******************************************************************************
+# INFER SPACES ******************************************************************************
 def infer_spaces(s):
   """Uses dynamic programming to infer the location of spaces in a string without spaces."""
   #******************************************************************************
@@ -56,14 +56,17 @@ def infer_spaces(s):
   
   return " ".join(reversed(out))
 #fim def
-#******************************************************************************
 
+# GET PARAMETERS ******************************************************************************
 #print('\nDigite o nome da pasta que contém os textos: ')
 #pasta = input()
 qtde_parametros = len(sys.argv)
 
 if (qtde_parametros >= 2):
+  # read folder name in which the texts are in
   pasta = sys.argv[1]
+
+  # TO DO MIGUEL - explicar esses parametros
   if qtde_parametros >= 3:
     arquivo_texto = sys.argv[2]
   else:
@@ -91,6 +94,7 @@ else:
   textos = pasta+arquivo_texto
 #fim if
 
+# verify if corpus is annotated
 if (len(sys.argv[2:]) != 0):
   print('--CORPUS ANOTADO--')
   anotado = True
@@ -99,16 +103,20 @@ else:
   anotado = False
 #fim if
 
+# GENERATE TOKENS ******************************************************************************
 sentencas  = []
 for filename in tqdm(textos):
   f = open(os.path.join(pasta,filename), encoding="utf8")  
   projeto = f.read()
 
+  # separate sentences
   frases = sent_tokenize(projeto)
   for frase in frases:
+    # verify words in <...>
     if anotado:
       tokens = frase.split(" ")
       processada = [w.lower() for w in tokens if not w.lower() in stopwords and w.isalnum() and "<" not in w]
+    # tokenize sentences
     else:
       tokens = nltk.word_tokenize(frase)
       processada = [w.lower() for w in tokens if not w.lower() in stopwords and w.isalnum()]
@@ -119,12 +127,14 @@ for filename in tqdm(textos):
 
 from nltk.lm.preprocessing import flatten
 
-# concatenando as sentenças em uma lista
+# concatenate all tokens from texts in a list
 tokens = list(flatten(sentencas))
 
-# filtrando para pegar só as palavras não repetidas
+# filter non repeated words (types)
 types = list(set(tokens))
 
+# IDENTIFY UNKNOWN WORDS ******************************************************************************
+# verify if token exists in lexic
 desconhecidos = []
 for word in types:
   if not lexico.existePalavra(word):
@@ -141,7 +151,8 @@ print("Porcentagem de palavras desconhecidas no corpus: ", (len(desconhecidos)/l
 print("\n Preparando funções para categorização das desconhecidas...")
 import pandas as pd
 
-#******************************************************************************
+# GENERATE DATAFRAME ******************************************************************************
+# starts dataframe to categorize unknown words
 def create_clear_df():
   df = pd.DataFrame(columns=['palavra', 'sugestão', 'classe'])
   df['palavra'] = desconhecidos
@@ -149,54 +160,57 @@ def create_clear_df():
   df['classe'] = 'desconhecida'
   return df
 #fim def
-#****************************************************************************** 
+
+# READ LEXIC ****************************************************************************** 
 df = create_clear_df()
 
 import re
 import unidecode
 
-# retorna string do json do lexico
+# read lexic json to string
 arquivo_obj = open(lexico_json,encoding='utf-8')
 str_json_lexico = arquivo_obj.read()
 arquivo_obj.close()
 
-# captura toda chave do json
+# capture all json keys
 palavras_lexico = re.findall('(?<=")(\S*)(?=":)', str_json_lexico)
 
-#******************************************************************************
+# ACCENTUATION ERRORS ******************************************************************************
+# unaccentuate lexic words
 def desacentuando_palavra(palavra):
-  # tira o acento da palavra
   return unidecode.unidecode(palavra)
 #fim def
-#******************************************************************************
+
+# decode words from unicode
 def tirando_palavra_do_unicode(palavra_unicode):
   return palavra_unicode.encode().decode('unicode-escape')
 #fim def
-#******************************************************************************
+
+# unaccentuate lexic words that are in unicode
 def desacentuando_palavra_unicode(palavra_unicode):
-  # tira a palavra do unicode
   palavra_sem_unicode = tirando_palavra_do_unicode(palavra_unicode)
   return desacentuando_palavra(palavra_sem_unicode)
 #fim def
-#******************************************************************************
+
 dic_palavras_lexico_sem_acento = {}
 
+# creates a new dictionary with unaccentuated words from lexic
 for palavra_acentuada in palavras_lexico:
   palavra_sem_acento = desacentuando_palavra_unicode(palavra_acentuada)
-  # cria referencia no dicionario
   dic_palavras_lexico_sem_acento[palavra_sem_acento] = tirando_palavra_do_unicode(palavra_acentuada)
 #fim for
 
+#PLACES FROM IBGE AND GOOGLE MAPS ******************************************************************************
 from ibge.localidades import *
-import requests
 
 dados_regioes = Regioes().getNome()
 dados_estados = Estados().getNome()
 dados_municipios = Municipios().getNome()
-
+#concatenate data from regions, states and cities from Brazil
 localidades_ibge = dados_regioes + dados_municipios + dados_estados
 
-# palavras com as localidades do Brasil, ambos em minusculo e sem acento
+# words with places from Brazil
+# in lower case and without accent
 localidades_ibge_lower_sem_acento = []
 for localidade in localidades_ibge:
   localidade_sem_acento = desacentuando_palavra(localidade)
@@ -207,8 +221,9 @@ json_paises = open("paises-gentilicos-google-maps.json", encoding="utf8")
 paises = json.load(json_paises)
 json_paises.close()
 
+# list with country names and gentiles
+# in lower case and without accent
 nome_paises_gentilicos_lower_sem_acento = []
-
 for pais in paises:
   pais_sem_acento = desacentuando_palavra(pais['nome_pais'])
   gentilico_sem_acento = desacentuando_palavra(pais['gentilico'])
@@ -220,7 +235,9 @@ from googletrans import Translator
 translator = Translator()
 
 df = create_clear_df()
-#******************************************************************************
+
+# SIMILAR SPELL ******************************************************************************
+# function to find if word has another word with similar spell
 def verifica_symspell(palavra):
   sugestao = symsp.lookup(palavra, Verbosity.CLOSEST, max_edit_distance=1, transfer_casing=True, include_unknown=True)[0].term
   if (sugestao != palavra) and lexico.existePalavra(sugestao):
@@ -229,7 +246,10 @@ def verifica_symspell(palavra):
     return -1
   #fim if
 #fim def
-#******************************************************************************
+
+# AGGLUTINATED WORD ******************************************************************************
+# function to find if word is a concatenation of many words
+# it uses a function to infer spaces
 def palavra_aglutinada_existe(palavra):
   sugestao = infer_spaces(palavra)
   lista = (sugestao).split(' ')
@@ -246,8 +266,10 @@ def palavra_aglutinada_existe(palavra):
   else:
     return ''
   #fim if
-#fim def  
-#******************************************************************************
+#fim def 
+
+# TRANSLATION ******************************************************************************
+# translate word to english if there is a translation
 def traduz_ingles(palavra):
   try:
     translation_en = translator.translate(palavra, src='en', dest='pt')
@@ -256,17 +278,20 @@ def traduz_ingles(palavra):
   else:
     return translation_en.text
 #fim def
-#******************************************************************************
+
+# translate word to spanish if there is a translation
 def traduz_espanhol(palavra):
   translation_es = translator.translate(palavra, src='es', dest='pt')
   return translation_es.text
 #fim def
-#******************************************************************************
+
+# translate word to french if there is a translation
 def traduz_frances(palavra):
   translation_fr = translator.translate(palavra, src='fr', dest='pt')
   return translation_fr.text
 #fim def
-#******************************************************************************
+
+# PIPELINE FUNCTION ******************************************************************************
 def categorizacao(palavra):
   palavra_sem_acento = desacentuando_palavra(palavra)
   if palavra.isnumeric():
@@ -296,7 +321,8 @@ def categorizacao(palavra):
     return ['desconhecida', False]
   #fim if
 #fim def
-#******************************************************************************
+
+# EXECUTE PIPELINE ******************************************************************************
 print("Começando categorização")
 indice = 0
 
@@ -326,6 +352,7 @@ df.sort_values(['classe', 'palavra'], inplace=True, ignore_index=True)
 df.to_csv(folder+'/desconhecidas.csv', index=False)
 print("\n--FIM DO PIPELINE--")
 
+# REWRITE TEXTS WITH PIPELINE SUGGESTIONS ******************************************************************************
 print("\n--COMEÇANDO A REMONTAR OS TEXTOS--")
 path_corrigidos = "textos-corrigidos"
 print("Os textos remontados ficarão na pasta", path_corrigidos)
