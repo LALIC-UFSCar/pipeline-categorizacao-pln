@@ -1,0 +1,8 @@
+tqdm
+nltk
+symspellpy
+pandas
+unidecode
+ibge
+requests
+googletrans
