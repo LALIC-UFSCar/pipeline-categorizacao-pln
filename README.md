@@ -14,10 +14,10 @@ Antes de executar o projeto, certifique-se de ter os seguintes requisitos atendi
 
 - [Léxico do POeTISA (POrtuguese processing: Towards Syntactic Analysis and parsing)](https://sites.google.com/icmc.usp.br/poetisa)
 - [JSON com lista de Países em pt-BR e seus respectivos Gentílicos, Siglas e Nome Internacional - Possui todos os países do Google Maps](https://gist.github.com/jonasruth/61bde1fcf0893bd35eea)
-- [Dicionário de frequências de palavras em pt-BR disponibilizado pela Linguateca](https://www.linguateca.pt/COMPARA/listas_freq.php)
-- Veio daqui? https://www.linguateca.pt/acesso/ordenador.php
+- [Dicionário de frequências de palavras em pt-BR disponibilizado pela Linguateca](https://www.linguateca.pt/acesso/tokens/formas.total.txt)
 - [Base de termos específicos da agropecuária disponibilizado pela Embrapa](https://sistemas.sede.embrapa.br/agrotermos/)
-- [TO DO Miguel] Qual a diferença entre word_frequency_linguateca.txt e formas.totalbr.txt
+
+Vale ressaltar que o arquivo `word_frequency_linguateca.txt` poossui o mesmo conteúdo que `formas.totalbr.txt` (que é o dicionário extraído da Linguateca), porém em outro formato (sem as frequências numéricas) para correta utilização por parte de uma das funções do pipeline.
 
 
 ## Instalação
@@ -46,9 +46,13 @@ Para utilizar a ferramenta do pipeline é preciso somente rodar o seguinte coman
 2. Execute o seguinte comando:
 
 ``` shell
-python3 pipeline_categorizacao.py /pasta-com-textos
+python3 pipeline_categorizacao.py <pasta-de-arquivos-txt-corpus>
 ```
 
-[TO DO Miguel] Explicar diferenças dos parâmetros
+Opcionalmente, podem ser passados mais dois parâmetros:
 
-Este comando irá gerar o lexer com base no arquivo da gramática, analisar o arquivo de entrada e gerar um arquivo de saída chamado `out.txt` com os erros léxicos e semânticos encontrados.
+``` shell
+python3 pipeline_categorizacao.py <pasta-de-arquivos-txt-corpus> <arquivo-unico-opcional> <anotado>
+```
+
+onde `<arquivo-unico-opcional>` indica o nome de um único arquivo de texto `txt` (caso deseje-se rodar o pipeline em apenas 1 texto) e `<anotado>` é qualquer string, indicando se o córpus possui anotação ou não. Caso o córpus seja anotado, palavras anotadas entre `<` e `>` serão desconsideradas.
