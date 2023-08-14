@@ -66,20 +66,21 @@ if (qtde_parametros >= 2):
   # read folder name in which the texts are in
   pasta = sys.argv[1]
 
-  # TO DO MIGUEL - explicar esses parametros
+  # optionally run the pipeline in only one text file
   if qtde_parametros >= 3:
     arquivo_texto = sys.argv[2]
   else:
     arquivo_texto = False
-    
+
+  # indicates if the texts are annotated or not
   if qtde_parametros >= 4:
     anotado = True
   else:
     anotado = False
 else:
   print("Erro de sintaxe!\n")
-  print("Comande: python3 pipeline_de_correcao.py <pasta-de-arquivos-txt-corpus>/ | <anotado>")
-  print("\tExemplo: python3 pipeline_de_correcao.py /home/corpus/ anotado")
+  print("Comando: python3 pipeline_de_correcao.py <pasta-de-arquivos-txt-corpus> <arquivo-unico-opcional> <anotado>")
+  print("\tExemplo: python3 pipeline_de_correcao.py /home/corpus/ projeto.txt anotado")
   sys.exit()
 #fim if
 
