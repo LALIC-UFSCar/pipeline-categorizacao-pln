@@ -66,25 +66,31 @@ if (qtde_parametros >= 2):
   # read folder name in which the texts are in
   pasta = sys.argv[1]
 
-  # optionally run the pipeline in only one text file
-  if qtde_parametros >= 3:
-    arquivo_texto = sys.argv[2]
-  else:
-    arquivo_texto = False
-
+  anotado = False
+  arquivo_texto = False
+  
   # indicates if the texts are annotated or not
-  if qtde_parametros >= 4:
+  if qtde_parametros >= 3 and sys.argv[2] == "anotado":
+    print('--CORPUS ANOTADO--')
     anotado = True
   else:
-    anotado = False
+    print('--CORPUS SEM ANOTAÇÃO--')
+
+  # optionally run the pipeline in only one text file
+  if qtde_parametros >= 4:
+    arquivo_texto = sys.argv[3]
+
 else:
   print("Erro de sintaxe!\n")
-  print("Comando: python3 pipeline_de_correcao.py <pasta-de-arquivos-txt-corpus> <arquivo-unico-opcional> <anotado>")
-  print("\tExemplo: python3 pipeline_de_correcao.py /home/corpus/ projeto.txt anotado")
+  print("Comande: python3 pipeline_categorizacao.py <pasta-de-arquivos-txt-corpus>/ | <anotado> | <arquivo-especifico>")
+  print("\tExemplo: python3 pipeline_categorizacao.py /home/corpus/ anotado arquivo.txt")
+  print("\tExemplo: python3 pipeline_categorizacao.py /home/corpus/ nao arquivo.txt")
+  print("\tExemplo: python3 pipeline_categorizacao.py /home/corpus/ anotado")
+  print("\tExemplo: python3 pipeline_categorizacao.py /home/corpus/ nao")
   sys.exit()
 #fim if
 
-if not(arquivo_texto):
+if not arquivo_texto:
   try:
     textos = os.listdir(pasta)
   except:
@@ -92,22 +98,13 @@ if not(arquivo_texto):
     sys.exit()
   #fim try
 else:
-  textos = pasta+arquivo_texto
-#fim if
-
-# verify if corpus is annotated
-if (len(sys.argv[2:]) != 0):
-  print('--CORPUS ANOTADO--')
-  anotado = True
-else:
-  print('--CORPUS SEM ANOTAÇÃO--')
-  anotado = False
+  textos = [arquivo_texto]
 #fim if
 
 # GENERATE TOKENS ******************************************************************************
 sentencas  = []
 for filename in tqdm(textos):
-  f = open(os.path.join(pasta,filename), encoding="utf8")  
+  f = open(os.path.join(pasta,filename), encoding="utf8")
   projeto = f.read()
 
   # separate sentences
@@ -121,7 +118,7 @@ for filename in tqdm(textos):
     else:
       tokens = nltk.word_tokenize(frase)
       processada = [w.lower() for w in tokens if not w.lower() in stopwords and w.isalnum()]
-    #fim if  
+    #fim if
     sentencas.append(processada)
   #fim for
 #fim for
@@ -130,9 +127,12 @@ from nltk.lm.preprocessing import flatten
 
 # concatenate all tokens from texts in a list
 tokens = list(flatten(sentencas))
+print("Total de Tokens:",len(tokens))
 
 # filter non repeated words (types)
 types = list(set(tokens))
+print("Total de Types:",len(types))
+print("Token/Type:",str(len(tokens)/len(types)))
 
 # IDENTIFY UNKNOWN WORDS ******************************************************************************
 # verify if token exists in lexic
@@ -142,12 +142,6 @@ for word in types:
     desconhecidos.append(word)
   #fim if
 #fim for
-
-'''
-print("Quant. palavras do corpus: ", len(types))
-print("Quant. palavras desconhecidas: ", len(desconhecidos))
-print("Porcentagem de palavras desconhecidas no corpus: ", (len(desconhecidos)/len(types))*100, "%")
-'''
 
 print("\n Preparando funções para categorização das desconhecidas...")
 import pandas as pd
@@ -270,26 +264,14 @@ def palavra_aglutinada_existe(palavra):
 #fim def 
 
 # TRANSLATION ******************************************************************************
-# translate word to english if there is a translation
-def traduz_ingles(palavra):
+# translate word if there is a translation
+def traduz(palavra,lingua):
   try:
-    translation_en = translator.translate(palavra, src='en', dest='pt')
+    translation = translator.translate(palavra, src=lingua, dest='pt')
   except:
-    print("Erro traducao Ingles:",palavra)
+    print("Erro traducao ",lingua,":",palavra)
   else:
-    return translation_en.text
-#fim def
-
-# translate word to spanish if there is a translation
-def traduz_espanhol(palavra):
-  translation_es = translator.translate(palavra, src='es', dest='pt')
-  return translation_es.text
-#fim def
-
-# translate word to french if there is a translation
-def traduz_frances(palavra):
-  translation_fr = translator.translate(palavra, src='fr', dest='pt')
-  return translation_fr.text
+    return translation.text
 #fim def
 
 # PIPELINE FUNCTION ******************************************************************************
@@ -311,12 +293,12 @@ def categorizacao(palavra):
   elif (len(palavra_aglutinada_existe(palavra)) != 0):
       palavras_desaglutinadas = palavra_aglutinada_existe(palavra)
       palavras_desaglutinadas.insert(0, 'aglutinada')
-      return palavras_desaglutinadas    
-  elif traduz_ingles(palavra) != palavra:
+      return palavras_desaglutinadas
+  elif traduz(palavra,'en') != palavra:
     return ['traduzida', False]
-  elif traduz_espanhol(palavra) != palavra:
+  elif traduz(palavra,'es') != palavra:
     return ['traduzida', False]
-  elif traduz_frances(palavra) != palavra:
+  elif traduz(palavra,'fr') != palavra:
     return ['traduzida', False]
   else:
     return ['desconhecida', False]
@@ -373,7 +355,7 @@ mapping = {'falta_acento': 0, 'acent_err': 1, 'symspell':2, 'aglutinada':3}
 for filename in tqdm(textos):
   name = filename.split('-')[0]
   error_occurr_dict[name] = [0, 0, 0, 0]
-  f = open(os.path.join(pasta,filename), encoding="utf8")    
+  f = open(os.path.join(pasta,filename), encoding="utf8")
   projeto = f.read()
   
   if anotado:
@@ -382,15 +364,16 @@ for filename in tqdm(textos):
     proj_corrig = projeto
   #fim if
   
-  for palavra in projeto.split(" "):
+  for palavra in nltk.word_tokenize(proj_corrig):
+    pattern = r'\b' + re.escape(palavra) + r'\b(?!\[)'
+
     if (palavra not in stopwords) and (palavra in subsdict):
       sugestao, classe = subsdict[palavra]
-      proj_corrig = proj_corrig.replace(' '+palavra+' ', ' '+palavra+'['+sugestao+']'+'{'+classe+'}'+' ')
+      proj_corrig = re.sub(pattern, palavra+'['+sugestao+']'+'{'+classe+'}', proj_corrig)
       idx = mapping[classe]
       error_occurr_dict[name][idx] += 1
     #fim if
   #fim for
-  
   f = open(os.path.join(path_corrigidos,filename[:-4]+'-corrigido.txt',), 'w', encoding="utf8")
   f.write(proj_corrig)
   f.close()

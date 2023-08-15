@@ -56,3 +56,25 @@ python3 pipeline_categorizacao.py <pasta-de-arquivos-txt-corpus> <arquivo-unico-
 ```
 
 onde `<arquivo-unico-opcional>` indica o nome de um único arquivo de texto `txt` (caso deseje-se rodar o pipeline em apenas 1 texto) e `<anotado>` é qualquer string, indicando se o córpus possui anotação ou não. Caso o córpus seja anotado, palavras anotadas entre `<` e `>` serão desconsideradas.
+
+## Prevenção de Erros
+É possível que quando o pipeline for iniciado tenham problemas de conexão SSL, para obtenção de dados pela API.
+Nesse caso, o indicado é seguir os seguintes passos:
+1. Crie um arquivo `openssl.cnf` com o seguinte conteúdo:
+```
+openssl_conf = openssl_init
+
+[openssl_init]
+ssl_conf = ssl_sect
+
+[ssl_sect]
+system_default = system_default_sect
+
+[system_default_sect]
+Options = UnsafeLegacyRenegotiation
+```
+
+2. Exportar o arquivo de configuração no seu ambiente com o comando:
+``` shell
+export OPENSSL_CONF=/path/to/file/openssl.cnf
+```
